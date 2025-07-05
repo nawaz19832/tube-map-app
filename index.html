@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Tube Map</title>
+
+  <!-- PDF.js viewer CSS (v5.3.31 from CDN) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/pdfjs-dist@5.3.31/web/pdf_viewer.css"
+  />
+
+  <style>
+    body, html { margin:0; padding:0; height:100%; }
+    #toolbar {
+      height:40px; background:#eee;
+      display:flex; align-items:center;
+      padding:0 10px; gap:10px;
+    }
+    #viewerContainer {
+      height: calc(100% - 40px);
+      overflow: hidden; position: relative;
+      background: #333; cursor: grab;
+    }
+    #viewerContainer.active { cursor: grabbing; }
+    .pdfViewer { position:absolute; top:0; left:0; }
+    #searchBox { flex:1; padding:4px; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <input id="searchBox" type="text" placeholder="Search station…">
+    <button id="searchBtn">Go</button>
+    <label>
+      Zoom:
+      <input id="zoomSlider" type="range" min="0.5" max="3" step="0.1" value="1">
+    </label>
+  </div>
+  <div id="viewerContainer">
+    <div class="pdfViewer"></div>
+  </div>
+
+  <!-- PDF.js library & viewer -->
+  <script src="https://unpkg.com/pdfjs-dist@5.3.31/build/pdf.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://unpkg.com/pdfjs-dist@5.3.31/build/pdf.worker.js";
+  </script>
+  <script src="https://unpkg.com/pdfjs-dist@5.3.31/web/pdf_viewer.js"></script>
+
+  <script>
+    // Initialize PDF.js viewer
+    const eventBus    = new pdfjsViewer.EventBus();
+    const linkService = new pdfjsViewer.PDFLinkService({ eventBus });
+    const findCtrl    = new pdfjsViewer.PDFFindController({ eventBus, linkService });
+    const pdfViewer   = new pdfjsViewer.PDFViewer({
+      container: document.getElementById("viewerContainer"),
+      eventBus, linkService, findController: findCtrl
+    });
+    linkService.setViewer(pdfViewer);
+
+    // Load your PDF (you’ll upload it to /pdf/)
+    pdfjsLib.getDocument("pdf/hfg_tubemap_Nov2022_v01.pdf").promise
+      .then(pdf => {
+        pdfViewer.setDocument(pdf);
+        linkService.setDocument(pdf, null);
+        eventBus.on("pagesinit", () => {
+          pdfViewer.currentScaleValue = "page-width";
+        });
+      })
+      .catch(err => console.error("PDF load error:", err));
+
+    // Drag-to-pan
+    ;(function(){
+      const ctr = document.getElementById("viewerContainer");
+      let down, startX, startY, scrollX, scrollY;
+      ctr.addEventListener("mousedown", e => {
+        down = true; ctr.classList.add("active");
+        startX = e.pageX - ctr.offsetLeft;
+        startY = e.pageY - ctr.offsetTop;
+        scrollX = ctr.scrollLeft; scrollY = ctr.scrollTop;
+      });
+      ["mouseup","mouseleave"].forEach(evt =>
+        ctr.addEventListener(evt, () => {
+          down = false; ctr.classList.remove("active");
+        })
+      );
+      ctr.addEventListener("mousemove", e => {
+        if (!down) return;
+        e.preventDefault();
+        const x = e.pageX - ctr.offsetLeft;
+        const y = e.pageY - ctr.offsetTop;
+        ctr.scrollLeft = scrollX - (x - startX);
+        ctr.scrollTop  = scrollY - (y - startY);
+      });
+    })();
+
+    // Zoom slider
+    document.getElementById("zoomSlider").addEventListener("input", e => {
+      pdfViewer.currentScale = e.target.value;
+    });
+
+    // Search box
+    document.getElementById("searchBtn").addEventListener("click", () => {
+      const q = document.getElementById("searchBox").value.trim();
+      if (!q) return;
+      findCtrl.executeCommand("find", {
+        query: q, highlightAll: true, phraseSearch: true
+      });
+    });
+    document.getElementById("searchBox").addEventListener("keydown", e => {
+      if (e.key === "Enter") document.getElementById("searchBtn").click();
+    });
+  </script>
+</body>
+</html>
