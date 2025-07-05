@@ -36,6 +36,7 @@
       <input id="zoomSlider" type="range" min="0.5" max="3" step="0.1" value="1">
     </label>
   </div>
+
   <div id="viewerContainer">
     <div class="pdfViewer"></div>
   </div>
@@ -59,8 +60,8 @@
     });
     linkService.setViewer(pdfViewer);
 
-    // Load your PDF (you’ll upload it to /pdf/)
-    pdfjsLib.getDocument("pdf/hfg_tubemap_Nov2022_v01.pdf").promise
+    // Load your PDF from the repo root
+    pdfjsLib.getDocument("hfg_tubemap_Nov2022_v01.pdf").promise
       .then(pdf => {
         pdfViewer.setDocument(pdf);
         linkService.setDocument(pdf, null);
